@@ -52,9 +52,6 @@ Today you'll compute the **Expected Value of Perfect Information (EVPI)** and th
 
 **References:**
 
-- [SimOptDecisions documentation](https://dossgollin-lab.github.io/SimOptDecisions/) — the optimization framework
-- @ruckert_flood:2019 — BRICK sea-level rise projections
-- @zarekarizi_suboptimal:2020 — house elevation cost model
 
 ## Before Lab
 
@@ -119,6 +116,25 @@ using Statistics
 include("house_elevation.jl")
 ```
 
+```{julia}
+
+```
+```{julia}
+using Pkg
+Pkg.activate("D:/Spring 2026/climate risk/labs/lab-06-s26-fh31rice")
+```
+
+```{julia}
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+```
+
+```{julia}
+```
+```{julia}
+include("house_elevation.jl")
+```
 ### Build the House
 
 We use a HAZUS depth-damage function for a single-story house with no basement, typical of Norfolk's coastal housing stock.
@@ -143,7 +159,7 @@ house = House(
 
 ### Sea-Level Rise from BRICK
 
-We load BRICK sea-level rise projections [@ruckert_flood:2019] for Sewells Point, Norfolk, VA.
+We load BRICK sea-level rise projections [] for Sewells Point, Norfolk, VA.
 The BRICK ensemble contains thousands of SLR trajectories under each RCP scenario.
 
 The two states of the world correspond to the **emissions pathway** the world follows:
@@ -267,8 +283,8 @@ end
 ::: {.callout-tip appearance="simple" icon=false title="Your Response — Question 1"}
 *Look at @fig-payoff.*
 
-1. *How do the optimal elevation heights differ between the two SLR futures? Why does this make intuitive sense?*
-2. *Why are the cost curves U-shaped? What happens at very low vs. very high elevation?*
+1. *How do the optimal elevation heights differ between the two SLR futures? Why does this make intuitive sense?* Ans: For RCP 8.5, elevation height is higher as it has more sea level rise and the house needs to be elevated more to reduce the effect of SLR.
+2. *Why are the cost curves U-shaped? What happens at very low vs. very high elevation?* Ans: The curve is U-shaped because at the low elevation, the expected damage is high as the house is expected to face more risk. At the high elevation the construction cost is going high. In the middle elevation, the risk is reducing and construction cost is increasing. So due to these tradeoffs the curve is U shaped.
 :::
 
 
@@ -284,21 +300,32 @@ $$
 where $a$ is the elevation height, $s$ is the SLR state, $p(s)$ is the prior probability, and $C(a, s)$ is total cost.
 
 ```{julia}
-# Your code here
+cost_without_info = minimum(costs_prior)
+
+cost_with_perfect_info = p_low * minimum(costs_low) + 
+                         p_high * minimum(costs_high)
+
+EVPI = cost_without_info - cost_with_perfect_info
 ```
 
 ```{julia}
 #| label: tbl-evpi
 #| tbl-cap: "EVPI for the elevation decision under SLR uncertainty"
-# Your code here
+cwi = round(cost_without_info, digits = 0)
+cwpi = round(cost_with_perfect_info, digits = 0)
+evpi_val = round(EVPI, digits = 0)
+
+DataFrame(cost_without_info = cwi,
+          cost_with_perfect_info = cwpi,
+          EVPI = evpi_val)
 ```
 
 ::: {.callout-tip appearance="simple" icon=false title="Your Response — Question 2"}
 *Look at @tbl-evpi.*
 
-1. *Interpret the EVPI in dollars. How much would this homeowner pay for a perfect forecast of the future emissions pathway?*
-2. *What fraction of the house value ($250,000) does the EVPI represent?*
-3. *Is this EVPI large enough to justify funding climate policy research? What other homeowners might benefit from the same information?*
+1. *Interpret the EVPI in dollars. How much would this homeowner pay for a perfect forecast of the future emissions pathway?* Ans: The cost without info from the table is 154565 and cost wit perfect info is 132517, so the sifference is the EVPI and it is 22048. EVPI = best decision without knowing the future - best decision with knowing the future
+2. *What fraction of the house value ($250,000) does the EVPI represent?* Ans: The fraction is calculated by 22048 / 250000 = 8.8 percent
+3. *Is this EVPI large enough to justify funding climate policy research? What other homeowners might benefit from the same information?* Ans: The EVPI for one homeowner is found as $22,048, which means a homeowner could save about this amount if they knew the future sea-level rise before making the elevation decision. One homeowner alone would not pay for expensive climate research. However, many homeowners in flood-prone areas face the same decision. If many homeowners benefit from the same information, the total value will be very large. Therefore, climate policy research can be justified because it helps many homeowners make better decisions.
 :::
 
 
@@ -320,7 +347,13 @@ p_ontrack_given_26 = 0.90    # P(report = "on track" | RCP 2.6)
 Use Bayes' rule to compute the posterior probability of RCP 8.5 given each report signal.
 
 ```{julia}
-# Your code here
+cost_without_info = minimum(costs_prior)
+
+p_off = p_offtrack_given_85 * p_high + (1 - p_ontrack_given_26) * p_low
+p_on  = p_ontrack_given_26 * p_low + (1 - p_offtrack_given_85) * p_high
+
+cost_off = p_offtrack_given_85 * costs_high .+ (1 - p_offtrack_given_85) * costs_low
+cost_on  = p_ontrack_given_26 * costs_low .+ (1 - p_ontrack_given_26) * costs_high
 ```
 
 ### Exercise: EVII
@@ -335,25 +368,59 @@ $$
 where $z$ is the report signal and $p(s|z)$ is the posterior from Bayes' rule.
 
 ```{julia}
-# Your code here
+cost_with_signal = p_off * minimum(cost_off) + p_on * minimum(cost_on)
+
+EVII = cost_without_info - cost_with_signal
 ```
 
 ```{julia}
 #| label: tbl-voi
 #| tbl-cap: "Summary of information value: no information, policy report, and perfect information"
-# Your code here
+DataFrame(cost_without_info = round(cost_without_info, digits=0),
+          cost_with_perfect_info = round(cost_with_perfect_info, digits=0),
+          cost_with_signal = round(cost_with_signal, digits=0),
+          EVPI = round(EVPI, digits=0),
+          EVII = round(EVII, digits=0),
+)
 ```
 
 ```{julia}
 #| label: fig-evii
 #| fig-cap: "Posterior-weighted cost curves after the policy report. Green: 'off track' signal shifts beliefs toward RCP 8.5. Orange: 'on track' signal shifts beliefs toward RCP 2.6. Stars mark the conditional optima."
-# Your code here
+let
+    fig = Figure(; size=(700, 450))
+
+    ax = Axis(
+        fig[1, 1];
+        xlabel="Elevation Height in ft",
+        ylabel="Total Cost in USD",
+        title="Posterior-weighted cost curves after the policy report",
+    )
+
+    hg = collect(height_grid)
+    lines!(ax, hg, cost_off; color=:green, linewidth=2, label="Off track")
+    lines!(ax, hg, cost_on; color=:orange, linewidth=2, label="On track")
+
+    # Mark optima
+    idx_off = argmin(cost_off)
+    idx_on = argmin(cost_on)
+
+    scatter!(ax, [hg[idx_off]], [cost_off[idx_off]]; color=:green, markersize=15, marker=:star5)
+    scatter!(ax, [hg[idx_on]], [cost_on[idx_on]]; color=:orange, markersize=15, marker=:star5)
+
+    axislegend(ax; position=:rt)
+    fig
+end
+```
+
+```{julia}
+
 ```
 
 ::: {.callout-tip appearance="simple" icon=false title="Your Response — Question 3"}
 *What fraction of the EVPI does the policy report capture?
 Why is EVII < EVPI?
-What would make the report more valuable?*
+What would make the report more valuable?* Ans: EVII =Expected value of imperfet information. In general EVPI = value of perfect knowledge of the future,  EVII= value of realistic imperfect signal. As the reportscan be wrong that's why EVII is less than EVPI. Here, EVII is 16,413 and less than 6000 from EVPI, and EVII is 74% of the EVPI.
 :::
 
 
@@ -364,7 +431,9 @@ What would make the report more valuable?*
 2. *Fund a tide gauge network that would reduce storm surge uncertainty.*
 
 *Based on your EVPI result, what is the maximum value of investment (1)?
-Why might investment (2) have a different (possibly larger or smaller) ceiling?*
+Why might investment (2) have a different (possibly larger or smaller) ceiling?* Ans: The maximum value of investment in case 1 is equal to the exact amount of EVPI, which is $22,048. This is the most the homeowner would be willing to pay for a research investment that can perfectly predict the future emissions pathway, because perfect information cannot save more than this amount in expected costs.
+
+Investment in case 2 may have a different value(can be high or low than EVPI) because reducing storm surge uncertainty affects a different part of the risk. Storm surge uncertainty may have a larger or smaller impact on total flood damage and elevation decisions. Therefore, the value of improving tide gauge information could be lower or higher than the EVPI, depending on how much it reduces uncertainty in storm surge estimates.
 :::
 
 
